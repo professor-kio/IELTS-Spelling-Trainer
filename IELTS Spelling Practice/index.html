@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IELTS Spelling Trainer</title>
+
+  <!-- PDF.js Library for PDF Text Extraction -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    // Set PDF.js worker path
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  </script>
+
+  <!-- External Stylesheet -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="container">
+  <h2>IELTS Spelling Practice</h2>
+  
+  <!-- Setup Screen -->
+  <div id="setup-area" class="setup-area">
+    <div class="setting-group">
+      <label><strong>Select Voice Accent / Speaker:</strong></label>
+      <select id="voice-select"></select>
+
+      <label class="radio-option" style="margin-top: 8px;">
+        <input type="checkbox" id="loop-audio-toggle" checked>
+        Repeat word automatically until next word arrives
+      </label>
+    </div>
+
+    <div class="setting-group">
+      <label><strong>Per-Word Timer Limit:</strong></label>
+      <select id="timer-select">
+        <option value="3">3 Seconds</option>
+        <option value="5">5 Seconds</option>
+        <option value="10">10 Seconds</option>
+        <option value="13">13 Seconds</option>
+        <option value="15">15 Seconds</option>
+        <option value="20" selected>20 Seconds (Default)</option>
+      </select>
+    </div>
+
+    <div class="setting-group">
+      <label><strong>Practice Word Count Limit:</strong></label>
+      <input type="number" id="word-count-input" placeholder="Custom word count (1-99)" min="0" max="99" oninput="if(this.value.length > 2) this.value = this.value.slice(0, 2);" />
+      
+      <label style="font-size: 12px; color: var(--muted-gray); margin-top: 4px;">Preset Add-ons (+ to custom count):</label>
+      <div class="preset-container">
+        <button type="button" class="preset-btn active" onclick="setPreset(0, this)">0</button>
+        <button type="button" class="preset-btn" onclick="setPreset(10, this)">+10</button>
+        <button type="button" class="preset-btn" onclick="setPreset(20, this)">+20</button>
+        <button type="button" class="preset-btn" onclick="setPreset(50, this)">+50</button>
+        <button type="button" class="preset-btn" onclick="setPreset(100, this)">+100</button>
+      </div>
+    </div>
+
+    <div class="setting-group">
+      <label><strong>Smart & Order Options:</strong></label>
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <label class="radio-option">
+          <input type="checkbox" id="smart-review-toggle" checked>
+          🧠 <strong>Smart Review Mode</strong> (Prioritize weak/misspelled words)
+        </label>
+        <button type="button" onclick="clearWeakWords()" style="background: #444; font-size: 11px; padding: 4px 8px;">Clear Saved Weak Words</button>
+      </div>
+      <label class="radio-option">
+        <input type="checkbox" id="shuffle-toggle" checked>
+        🔀 Randomize / Shuffle remaining word order
+      </label>
+      <label class="radio-option">
+        <input type="checkbox" id="dedupe-toggle" checked>
+        🧹 Remove duplicate words from passages
+      </label>
+    </div>
+
+    <div class="setting-group">
+      <label><strong>Select Practice Mode:</strong></label>
+      <label class="radio-option">
+        <input type="radio" name="mode" value="realtime" checked>
+        Real-Time Mode (Shows wrong characters in red live as you type)
+      </label>
+      <label class="radio-option">
+        <input type="radio" name="mode" value="anonymous">
+        Anonymous Mode (No red feedback while typing; full breakdown in final results)
+      </label>
+    </div>
+
+    <label>Upload a TXT or PDF passage/file:</label>
+    <input type="file" id="file-input" accept=".txt, .pdf" />
+    <span id="loading-status" class="loading-status">Parsing file... please wait.</span>
+    
+    <label>Or paste any passage/essay/word list directly:</label>
+    <textarea id="text-input" placeholder="Paste entire articles or passages here! Numbers and symbols will automatically be stripped out."></textarea>
+    
+    <button onclick="startPractice()">Start Practice</button>
+  </div>
+
+  <!-- Trainer Screen -->
+  <div id="trainer-area" class="trainer-area">
+    <div class="score-board">
+      <span id="progress-text">Word 1 of 10</span>
+      <div class="live-stats">
+        <div>Submitted: <span id="submitted-count" style="color: var(--accent-blue);">0</span></div>
+        <div>Missed: <span id="missed-count" class="score-missed">0</span></div>
+      </div>
+    </div>
+
+    <div class="timer-bar-container">
+      <div id="timer-bar" class="timer-bar"></div>
+    </div>
+    
+    <button class="speaker-btn" onclick="speakCurrentWord(true)">🔊 Speak Word</button>
+
+    <div id="diff-display" class="diff-display"></div>
+    
+    <input type="text" id="user-input" class="input-box" placeholder="Type word & press Enter..." autocomplete="off" spellcheck="false" autofocus />
+    <span class="hint-text">Press Enter to submit word (Leave blank + Enter to count as Missed)</span>
+
+    <button onclick="submitWord()" style="background: #444; font-size: 14px; width: 100%;">Submit / Next Word (Enter)</button>
+    <button onclick="promptFinishEarly()" class="btn-finish">Finish Practice Early</button>
+  </div>
+
+  <!-- Results Screen -->
+  <div id="results-area" class="results-area">
+    <h3>Session Complete!</h3>
+    
+    <div class="summary-card">
+      <div>Total <span id="res-total">0</span></div>
+      <div>Correct <span id="res-correct" class="score-correct">0</span></div>
+      <div>Wrong <span id="res-wrong" class="score-wrong">0</span></div>
+      <div>Missed <span id="res-missed" class="score-missed">0</span></div>
+      <div>Accuracy <span id="res-accuracy">0%</span></div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Target Word</th>
+          <th>Your Answer</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="results-table-body"></tbody>
+    </table>
+
+    <button onclick="resetApp()">Practice Again</button>
+  </div>
+</div>
+
+<!-- Modal Confirmation Dialogue -->
+<div id="confirm-modal" class="modal-overlay">
+  <div class="modal-box">
+    <h3>Finish Test Early?</h3>
+    <p style="color: var(--muted-gray); font-size: 14px;">Are you sure you want to end the session now? All unattempted remaining words will be counted as <strong>Missed</strong>.</p>
+    <div class="modal-actions">
+      <button onclick="confirmFinishEarly()" style="background: var(--error-red);">Yes, Finish</button>
+      <button onclick="closeModal()" style="background: #444;">No, Continue</button>
+    </div>
+  </div>
+</div>
+
+<!-- External JavaScript -->
+<script src="script.js"></script>
+</body>
+</html>
