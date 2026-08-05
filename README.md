@@ -1,4 +1,4 @@
-# IELTS-Spelling-Practice
+# IELTS-Spelling-Trainer
 This is a simple project made for my personal use. This project helps me or anyone whose English is a second language and have difficulty with spelling.
 
 There are two options for Practice Mode: real-time and anonymous. They are self-explanatory.
